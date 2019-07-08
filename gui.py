@@ -43,6 +43,7 @@ def send():
     #close the socket when you are done
     mySocket.close()
 
+#TODO add thread or something async to listen function
 def listen():
     listening_server_label.config(text="Listening")
     host="127.0.0.1"
