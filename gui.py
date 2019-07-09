@@ -63,15 +63,15 @@ def send_thread():
     try:
         mySocket.connect((host, port))
         while byte:
-        mySocket.send(byte)
-        times += 1
-        current_percentage = math.floor(((times*CONSTANT)/size)*100)
-        if current_percentage > percentage:
-            send_client_percentage_label.config(text=str(percentage)+"%")
-            percentage += 1
+            mySocket.send(byte)
+            times += 1
+            current_percentage = math.floor(((times*CONSTANT)/size)*100)
+            if current_percentage > percentage:
+                send_client_percentage_label.config(text=str(percentage)+"%")
+                percentage += 1
 
-        #reads next sequence of bytes
-        byte = f.read(CONSTANT)
+            #reads next sequence of bytes
+            byte = f.read(CONSTANT)
 
         send_client_percentage_label.config(text="Done.")
         #close the socket when you are done
@@ -120,6 +120,11 @@ def listen_thread():
 
     if (os.path.isfile(filename)):
         #TODO show dialog
+        listening_server_label.config(text="File already exists.")
+        conn.close()
+        LISTEN_SEMAPHORE.release()
+        return
+
     f = open(filename, "wb")
     while True:
         data = conn.recv(CONSTANT)
