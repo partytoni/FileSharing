@@ -3,12 +3,22 @@ from tkinter.filedialog import askopenfilename
 import socket
 import os
 import math
+import threading
 
 #client method to send the file
 
 CONSTANT = 1024*8
+SEND_SEMAPHORE=threading.Semaphore()
+LISTEN_SEMAPHORE=threading.Semaphore()
+listen_t = None
+send_t = None
 
-def send():
+def send_thread():
+    ret = SEND_SEMAPHORE.acquire(timeout=1)
+    if (ret==False):
+        print("Send already in progress.")
+        return
+
     filename=filename_client_label.cget("text")
     f = open(filename, "rb")
     size = os.path.getsize(filename)
@@ -42,9 +52,18 @@ def send():
     send_client_percentage_label.config(text="Done.")
     #close the socket when you are done
     mySocket.close()
+    SEND_SEMAPHORE.release()
 
-#TODO add thread or something async to listen function
-def listen():
+def send():
+    send_t = threading.Thread(target=send_thread)
+    send_t.start()
+
+def listen_thread():
+    ret = LISTEN_SEMAPHORE.acquire(timeout=1)
+    if (ret == False):
+        print("Listen already in progress.")
+        return
+
     listening_server_label.config(text="Listening")
     host="127.0.0.1"
     port = int(port_server_text.get())
@@ -66,6 +85,13 @@ def listen():
     listening_server_label.config(text="Done")
 
     conn.close()
+    LISTEN_SEMAPHORE.release()
+
+
+def listen():
+    if (LISTEN_SEMAPHORE._value==1):
+        listen_t = threading.Thread(target=listen_thread)
+        listen_t.start()
 
 def choose():
     filename = askopenfilename()
