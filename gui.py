@@ -51,12 +51,18 @@ def send_thread():
     mySocket = socket.socket()
     try:
         mySocket.connect((host, port))
+        mySocket.send((filename_client_label.cget("text").split("/")[-1]).encode())
+        mySocket.close()
     except:
         SEND_SEMAPHORE.release()
         return
 
+    
 
-    while byte:
+    mySocket = socket.socket()
+    try:
+        mySocket.connect((host, port))
+        while byte:
         mySocket.send(byte)
         times += 1
         current_percentage = math.floor(((times*CONSTANT)/size)*100)
@@ -67,10 +73,17 @@ def send_thread():
         #reads next sequence of bytes
         byte = f.read(CONSTANT)
 
-    send_client_percentage_label.config(text="Done.")
-    #close the socket when you are done
-    mySocket.close()
-    SEND_SEMAPHORE.release()
+        send_client_percentage_label.config(text="Done.")
+        #close the socket when you are done
+        mySocket.close()
+        SEND_SMAPHORE.release()
+    except:
+        mySocket.close()
+        SEND_SEMAPHORE.release()
+        return
+
+
+    
 
 def send():
     send_t = threading.Thread(target=send_thread)
@@ -92,12 +105,21 @@ def listen_thread():
     mySocket = socket.socket()
     mySocket.bind((host, port))
 
+    #first connection sends file name
+    mySocket.listen(1)
+    conn, addr = mySocket.accept()
+    data = conn.recv(1024)
+    filename = data.decode()
+    print("The file name is ",filename)
+    conn.close()
+
+    #second connection receives the file. I know, it sucks, but it works.
     mySocket.listen(1)
     conn, addr = mySocket.accept()
     listening_server_label.config(text="Receiving")
 
-    filename = filename_server_text.get()
-
+    if (os.path.isfile(filename)):
+        #TODO show dialog
     f = open(filename, "wb")
     while True:
         data = conn.recv(CONSTANT)
@@ -153,10 +175,8 @@ choose_file_client_button = Button(client_frame, text="Choose file", command=cho
 ip_server_label.grid(row=0, column=0, columnspan=2)
 port_server_label.grid(row=1, column=0)
 port_server_text.grid(row=1, column=1)
-filename_server_label.grid(row=2,column=0)
-filename_server_text.grid(row=2,column=1)
-listen_server_button.grid(row=3,column=0)
-listening_server_label.grid(row=3, column=1)
+listen_server_button.grid(row=2,column=0)
+listening_server_label.grid(row=2, column=1)
 
 
 #client packing
@@ -166,8 +186,8 @@ port_client_label.grid(row=1, column=0)
 port_client_text.grid(row=1, column=1)
 filename_client_label.grid(row=2,column=0)
 choose_file_client_button.grid(row=2,column=1)
-send_client_button.grid(row=3,column=0,columnspan=2)
-send_client_percentage_label.grid(row=3, column=1)
+send_client_percentage_label.grid(row=3, column=0)
+send_client_button.grid(row=3,column=1)
 
 
 
