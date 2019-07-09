@@ -1,10 +1,11 @@
+import time
 from tkinter import *
 from tkinter.filedialog import askopenfilename
 import socket
 import os
 import math
 import threading
-
+import base64
 #client method to send the file
 
 CONSTANT = 1024*8
@@ -13,15 +14,24 @@ LISTEN_SEMAPHORE=threading.Semaphore()
 listen_t = None
 send_t = None
 
+DEBUG=True
+
 def send_thread():
     ret = SEND_SEMAPHORE.acquire(timeout=1)
     if (ret==False):
         print("Send already in progress.")
         return
 
-    filename=filename_client_label.cget("text")
-    f = open(filename, "rb")
-    size = os.path.getsize(filename)
+    pathname=filename_client_label.cget("text")
+    try:
+        f = open(pathname, "rb")
+    except:
+        SEND_SEMAPHORE.release()
+        return
+    size = os.path.getsize(pathname)
+
+    #filename has only the name of the file, while pathname has full path /Volumes/...
+
 
     #byte contains each read of CONSTANT bytes
     byte = f.read(CONSTANT)
@@ -29,6 +39,9 @@ def send_thread():
     host = ip_client_text.get()
     port = int(port_client_text.get())
 
+    if (DEBUG):
+        port = 4000
+        host = '127.0.0.1'
 
     send_client_percentage_label.config(text="0%")
 
@@ -36,7 +49,12 @@ def send_thread():
     times = 0
 
     mySocket = socket.socket()
-    mySocket.connect((host, port))
+    try:
+        mySocket.connect((host, port))
+    except:
+        SEND_SEMAPHORE.release()
+        return
+
 
     while byte:
         mySocket.send(byte)
@@ -68,6 +86,9 @@ def listen_thread():
     host="127.0.0.1"
     port = int(port_server_text.get())
 
+    if (DEBUG):
+        port=4000
+
     mySocket = socket.socket()
     mySocket.bind((host, port))
 
@@ -75,7 +96,9 @@ def listen_thread():
     conn, addr = mySocket.accept()
     listening_server_label.config(text="Receiving")
 
-    f = open("server.mp4", "wb")
+    filename = filename_server_text.get()
+
+    f = open(filename, "wb")
     while True:
         data = conn.recv(CONSTANT)
         if not data:
@@ -110,6 +133,8 @@ server_frame = Frame(root)
 ip_server_label = Label(server_frame, text="Your IP address is "+IPAddr)
 port_server_label = Label(server_frame, text="Port: ")
 port_server_text = Entry(server_frame, highlightbackground="grey")
+filename_server_label = Label(server_frame, text="Filename: ")
+filename_server_text = Entry(server_frame, highlightbackground="grey")
 listen_server_button = Button(server_frame, text="Listen", command=listen)
 listening_server_label = Label(server_frame, text="")
 
@@ -128,8 +153,10 @@ choose_file_client_button = Button(client_frame, text="Choose file", command=cho
 ip_server_label.grid(row=0, column=0, columnspan=2)
 port_server_label.grid(row=1, column=0)
 port_server_text.grid(row=1, column=1)
-listen_server_button.grid(row=2,column=0)
-listening_server_label.grid(row=2, column=1)
+filename_server_label.grid(row=2,column=0)
+filename_server_text.grid(row=2,column=1)
+listen_server_button.grid(row=3,column=0)
+listening_server_label.grid(row=3, column=1)
 
 
 #client packing
@@ -178,3 +205,33 @@ def main():
 
 if __name__ == '__main__':
     main()
+
+
+
+'''
+HOW TO KILL A THREAD
+
+def do_work(id, stop):
+    print("I am thread", id)
+    while True:
+        print("I am thread {} doing something".format(id))
+        if stop():
+            print("  Exiting loop.")
+            break
+    print("Thread {}, signing off".format(id))
+
+
+def main():
+    stop_threads = False
+    workers = []
+    for id in range(0, 3):
+        tmp = threading.Thread(target=do_work, args=(id, lambda: stop_threads))
+        workers.append(tmp)
+        tmp.start()
+    time.sleep(3)
+    print('main: done sleeping; time to stop the threads.')
+    stop_threads = True
+    for worker in workers:
+        worker.join()
+    print('Finis.')
+'''
