@@ -14,7 +14,7 @@ LISTEN_SEMAPHORE=threading.Semaphore()
 listen_t = None
 send_t = None
 
-DEBUG=True
+DEBUG=False
 
 def send_thread():
     ret = SEND_SEMAPHORE.acquire(timeout=1)
@@ -54,6 +54,9 @@ def send_thread():
         mySocket.send((filename_client_label.cget("text").split("/")[-1]).encode())
         mySocket.close()
     except:
+        import sys
+        e = sys.exc_info()[0]
+        print("Error: "+str(e))
         SEND_SEMAPHORE.release()
         return
 
@@ -96,7 +99,7 @@ def listen_thread():
         return
 
     listening_server_label.config(text="Listening")
-    host="127.0.0.1"
+    host=IPAddr
     port = int(port_server_text.get())
 
     if (DEBUG):
@@ -120,10 +123,13 @@ def listen_thread():
 
     if (os.path.isfile(filename)):
         #TODO show dialog
-        listening_server_label.config(text="File already exists.")
-        conn.close()
-        LISTEN_SEMAPHORE.release()
-        return
+        from tkinter import messagebox
+        sure=messagebox.askokcancel("Are you sure?", "The file already exists, do you want to overwrite?")
+        if (not sure):
+            listening_server_label.config(text="File already exists.")
+            conn.close()
+            LISTEN_SEMAPHORE.release()
+            return
 
     f = open(filename, "wb")
     while True:
@@ -132,7 +138,7 @@ def listen_thread():
             break
         f.write(data)
 
-    listening_server_label.config(text="Done")
+    listening_server_label.config(text="The file is saved at "+os.path.abspath(filename))
 
     conn.close()
     LISTEN_SEMAPHORE.release()
@@ -143,7 +149,7 @@ def listen():
         listen_t = threading.Thread(target=listen_thread)
         listen_t.start()
 
-def choose():
+def choose_file():
     filename = askopenfilename()
     filename_client_label.config(text=filename)
     
@@ -174,7 +180,7 @@ port_client_text = Entry(client_frame, highlightbackground="grey")
 send_client_button = Button(client_frame, text="Send", command=send)
 send_client_percentage_label = Label(client_frame, text="")
 filename_client_label = Label(client_frame, text = "No selected file.")
-choose_file_client_button = Button(client_frame, text="Choose file", command=choose)
+choose_file_client_button = Button(client_frame, text="Choose file", command=choose_file)
 
 #server packing
 ip_server_label.grid(row=0, column=0, columnspan=2)
