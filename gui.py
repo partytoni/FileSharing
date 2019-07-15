@@ -1,28 +1,62 @@
+import base64
+import hashlib
+import math
+import os
+import platform
+import socket
+import subprocess
+import threading
 import time
 from tkinter import *
 from tkinter.filedialog import askopenfilename
-import socket
-import os
-import math
-import threading
-import base64
-#client method to send the file
+
+# client method to send the file
 
 CONSTANT = 1024*8
-SEND_SEMAPHORE=threading.Semaphore()
-LISTEN_SEMAPHORE=threading.Semaphore()
+SEND_SEMAPHORE = threading.Semaphore()
+LISTEN_SEMAPHORE = threading.Semaphore()
 listen_t = None
 send_t = None
 
-DEBUG=False
+DEBUG = False
+
+
+def compute_hash(pathname):
+    BLOCKSIZE = 65536
+    hasher = hashlib.sha1()
+    with open(pathname, 'rb') as afile:
+        buf = afile.read(BLOCKSIZE)
+        while len(buf) > 0:
+            hasher.update(buf)
+            buf = afile.read(BLOCKSIZE)
+    return hasher.hexdigest()
+
+def get_folder_of_a_file(path):
+    result = ""
+    lista = path.split("/")
+    for i in range(0,len(lista)-2):
+        result = result + lista[i]
+    return result
+
+def open_file(pathname):
+    
+    path = os.path.dirname(pathname)
+
+    if platform.system() == "Windows":
+        os.startfile(path)
+    elif platform.system() == "Darwin":
+        subprocess.Popen(["open", path])
+    else:
+        subprocess.Popen(["xdg-open", path])
+
 
 def send_thread():
     ret = SEND_SEMAPHORE.acquire(timeout=1)
-    if (ret==False):
+    if (ret == False):
         print("Send already in progress.")
         return
 
-    pathname=filename_client_label.cget("text")
+    pathname = filename_client_label.cget("text")
     try:
         f = open(pathname, "rb")
     except:
@@ -30,10 +64,9 @@ def send_thread():
         return
     size = os.path.getsize(pathname)
 
-    #filename has only the name of the file, while pathname has full path /Volumes/...
+    # filename has only the name of the file, while pathname has full path /Volumes/...
 
-
-    #byte contains each read of CONSTANT bytes
+    # byte contains each read of CONSTANT bytes
     byte = f.read(CONSTANT)
 
     host = ip_client_text.get()
@@ -51,7 +84,8 @@ def send_thread():
     mySocket = socket.socket()
     try:
         mySocket.connect((host, port))
-        mySocket.send((filename_client_label.cget("text").split("/")[-1]).encode())
+        mySocket.send((filename_client_label.cget(
+            "text").split("/")[-1]).encode())
         mySocket.close()
     except:
         import sys
@@ -60,8 +94,7 @@ def send_thread():
         SEND_SEMAPHORE.release()
         return
 
-    
-
+    #from now on the fill will be sent
     mySocket = socket.socket()
     try:
         mySocket.connect((host, port))
@@ -73,11 +106,13 @@ def send_thread():
                 send_client_percentage_label.config(text=str(percentage)+"%")
                 percentage += 1
 
-            #reads next sequence of bytes
+            # reads next sequence of bytes
             byte = f.read(CONSTANT)
 
-        send_client_percentage_label.config(text="Done.")
-        #close the socket when you are done
+        hash = compute_hash(pathname)
+        send_client_percentage_label.config(
+            text="Done. The SHA1 of the file is "+str(hash))
+        # close the socket when you are done
         mySocket.close()
         SEND_SMAPHORE.release()
     except:
@@ -86,11 +121,10 @@ def send_thread():
         return
 
 
-    
-
 def send():
     send_t = threading.Thread(target=send_thread)
     send_t.start()
+
 
 def listen_thread():
     ret = LISTEN_SEMAPHORE.acquire(timeout=1)
@@ -99,32 +133,33 @@ def listen_thread():
         return
 
     listening_server_label.config(text="Listening")
-    host=IPAddr
+    host = IPAddr
     port = int(port_server_text.get())
 
     if (DEBUG):
-        port=4000
+        port = 4000
 
     mySocket = socket.socket()
     mySocket.bind((host, port))
 
-    #first connection sends file name
+    # first connection sends file name
     mySocket.listen(1)
     conn, addr = mySocket.accept()
     data = conn.recv(1024)
     filename = data.decode()
-    print("The file name is ",filename)
+    print("The file name is ", filename)
     conn.close()
 
-    #second connection receives the file. I know, it sucks, but it works.
+    # second connection receives the file. I know, it sucks, but it works.
     mySocket.listen(1)
     conn, addr = mySocket.accept()
     listening_server_label.config(text="Receiving")
 
     if (os.path.isfile(filename)):
-        #TODO show dialog
+        # TODO show dialog
         from tkinter import messagebox
-        sure=messagebox.askokcancel("Are you sure?", "The file already exists, do you want to overwrite?")
+        sure = messagebox.askokcancel(
+            "Are you sure?", "The file already exists, do you want to overwrite?")
         if (not sure):
             listening_server_label.config(text="File already exists.")
             conn.close()
@@ -138,30 +173,35 @@ def listen_thread():
             break
         f.write(data)
 
-    listening_server_label.config(text="The file is saved at "+os.path.abspath(filename))
-
+    abspath = os.path.abspath(filename)
+    f.close()
+    hash = compute_hash(abspath)
+    listening_server_label.config(
+        text="The file is saved at "+abspath+", \n The SHA1 of the file is "+str(hash))
+    open_file(abspath)
     conn.close()
     LISTEN_SEMAPHORE.release()
 
 
 def listen():
-    if (LISTEN_SEMAPHORE._value==1):
+    if (LISTEN_SEMAPHORE._value == 1):
         listen_t = threading.Thread(target=listen_thread)
         listen_t.start()
+
 
 def choose_file():
     filename = askopenfilename()
     filename_client_label.config(text=filename)
-    
+
 
 hostname = socket.gethostname()
 IPAddr = socket.gethostbyname(hostname)
 
-#root definition
+# root definition
 root = Tk()
 client_or_server_var = IntVar()
 
-#server definitions of elements
+# server definitions of elements
 server_frame = Frame(root)
 ip_server_label = Label(server_frame, text="Your IP address is "+IPAddr)
 port_server_label = Label(server_frame, text="Port: ")
@@ -171,7 +211,7 @@ filename_server_text = Entry(server_frame, highlightbackground="grey")
 listen_server_button = Button(server_frame, text="Listen", command=listen)
 listening_server_label = Label(server_frame, text="")
 
-#client definition of elements
+# client definition of elements
 client_frame = Frame(root)
 ip_client_label = Label(client_frame, text="Server's IP address: ")
 ip_client_text = Entry(client_frame, highlightbackground="grey")
@@ -179,31 +219,30 @@ port_client_label = Label(client_frame, text="Port: ")
 port_client_text = Entry(client_frame, highlightbackground="grey")
 send_client_button = Button(client_frame, text="Send", command=send)
 send_client_percentage_label = Label(client_frame, text="")
-filename_client_label = Label(client_frame, text = "No selected file.")
-choose_file_client_button = Button(client_frame, text="Choose file", command=choose_file)
+filename_client_label = Label(client_frame, text="No selected file.")
+choose_file_client_button = Button(
+    client_frame, text="Choose file", command=choose_file)
 
-#server packing
+# server packing
 ip_server_label.grid(row=0, column=0, columnspan=2)
 port_server_label.grid(row=1, column=0)
 port_server_text.grid(row=1, column=1)
-listen_server_button.grid(row=2,column=0)
+listen_server_button.grid(row=2, column=0)
 listening_server_label.grid(row=2, column=1)
 
 
-#client packing
+# client packing
 ip_client_label.grid(row=0, column=0)
 ip_client_text.grid(row=0, column=1)
 port_client_label.grid(row=1, column=0)
 port_client_text.grid(row=1, column=1)
-filename_client_label.grid(row=2,column=0)
-choose_file_client_button.grid(row=2,column=1)
+filename_client_label.grid(row=2, column=0)
+choose_file_client_button.grid(row=2, column=1)
 send_client_percentage_label.grid(row=3, column=0)
-send_client_button.grid(row=3,column=1)
+send_client_button.grid(row=3, column=1)
 
 
-
-
-# 0 is for the server, 1 for the client 
+# 0 is for the server, 1 for the client
 def client_or_server_func():
     value = client_or_server_var.get()
 
@@ -236,7 +275,6 @@ def main():
 
 if __name__ == '__main__':
     main()
-
 
 
 '''
