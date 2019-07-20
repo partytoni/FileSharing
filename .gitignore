@@ -2,3 +2,5 @@
 .build/
 gui.spec
 test.py
+__pycache__
+.DS_Store

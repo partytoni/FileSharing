@@ -19,6 +19,9 @@ listen_t = None
 send_t = None
 
 DEBUG = False
+COLOR = "#202020"
+TEXT_COLOR = "white"
+PADY = 2
 
 
 def compute_hash(pathname):
@@ -31,15 +34,17 @@ def compute_hash(pathname):
             buf = afile.read(BLOCKSIZE)
     return hasher.hexdigest()
 
+
 def get_folder_of_a_file(path):
     result = ""
     lista = path.split("/")
-    for i in range(0,len(lista)-2):
+    for i in range(0, len(lista)-2):
         result = result + lista[i]
     return result
 
+
 def open_file(pathname):
-    
+
     path = os.path.dirname(pathname)
 
     if platform.system() == "Windows":
@@ -94,7 +99,7 @@ def send_thread():
         SEND_SEMAPHORE.release()
         return
 
-    #from now on the fill will be sent
+    # from now on the fill will be sent
     mySocket = socket.socket()
     try:
         mySocket.connect((host, port))
@@ -194,12 +199,41 @@ def choose_file():
     filename_client_label.config(text=filename)
 
 
+# 0 is for the server, 1 for the client
+def client_or_server_func():
+    value = client_or_server_var.get()
+
+    # server
+    if value == 0:
+        client_frame.pack_forget()
+        server_frame.pack()
+
+    else:
+        server_frame.pack_forget()
+        client_frame.pack()
+
+
 hostname = socket.gethostname()
 IPAddr = socket.gethostbyname(hostname)
 
 # root definition
 root = Tk()
+root.configure(background='black')
 client_or_server_var = IntVar()
+
+# top radius choice
+client_or_server_frame = Frame(root)
+client_or_server_label = Label(
+    client_or_server_frame, text="Choose client to send the file or server to receive it.")
+client_radio = Radiobutton(client_or_server_frame, text="client",
+                           variable=client_or_server_var, value=1, command=client_or_server_func)
+server_radio = Radiobutton(client_or_server_frame, text="server",
+                           variable=client_or_server_var, value=0, command=client_or_server_func)
+
+client_or_server_label.pack(side=LEFT)
+client_radio.pack(side=LEFT)
+server_radio.pack(side=LEFT)
+client_or_server_frame.pack()
 
 # server definitions of elements
 server_frame = Frame(root)
@@ -217,59 +251,59 @@ ip_client_label = Label(client_frame, text="Server's IP address: ")
 ip_client_text = Entry(client_frame, highlightbackground="grey")
 port_client_label = Label(client_frame, text="Port: ")
 port_client_text = Entry(client_frame, highlightbackground="grey")
-send_client_button = Button(client_frame, text="Send", command=send)
+send_client_button = Button(client_frame, text="     Send      ", command=send)
 send_client_percentage_label = Label(client_frame, text="")
 filename_client_label = Label(client_frame, text="No selected file.")
 choose_file_client_button = Button(
     client_frame, text="Choose file", command=choose_file)
 
 # server packing
-ip_server_label.grid(row=0, column=0, columnspan=2)
-port_server_label.grid(row=1, column=0)
-port_server_text.grid(row=1, column=1)
-listen_server_button.grid(row=2, column=0)
-listening_server_label.grid(row=2, column=1)
+ip_server_label.grid(row=0, column=0, columnspan=2, pady=PADY)
+port_server_label.grid(row=1, column=0, pady=PADY)
+port_server_text.grid(row=1, column=1, pady=PADY)
+listen_server_button.grid(row=2, column=0, pady=PADY)
+listening_server_label.grid(row=2, column=1, pady=PADY)
 
 
 # client packing
-ip_client_label.grid(row=0, column=0)
-ip_client_text.grid(row=0, column=1)
-port_client_label.grid(row=1, column=0)
-port_client_text.grid(row=1, column=1)
-filename_client_label.grid(row=2, column=0)
-choose_file_client_button.grid(row=2, column=1)
-send_client_percentage_label.grid(row=3, column=0)
-send_client_button.grid(row=3, column=1)
+ip_client_label.grid(row=0, column=0, pady=PADY)
+ip_client_text.grid(row=0, column=1, pady=PADY)
+port_client_label.grid(row=1, column=0, pady=PADY)
+port_client_text.grid(row=1, column=1, pady=PADY)
+filename_client_label.grid(row=2, column=0, pady=PADY)
+choose_file_client_button.grid(row=2, column=1, pady=PADY)
+send_client_percentage_label.grid(row=3, column=0, pady=PADY)
+send_client_button.grid(row=3, column=1, pady=PADY)
 
 
-# 0 is for the server, 1 for the client
-def client_or_server_func():
-    value = client_or_server_var.get()
-
-    # server
-    if value == 0:
-        client_frame.pack_forget()
-        server_frame.pack()
-
-    else:
-        server_frame.pack_forget()
-        client_frame.pack()
-
-
-def main():
-    client_or_server_frame = Frame(root)
-    client_or_server_label = Label(
-        client_or_server_frame, text="Choose client to send the file or server to receive it.")
-    client_radio = Radiobutton(client_or_server_frame, text="client",
-                               variable=client_or_server_var, value=1, command=client_or_server_func)
-    server_radio = Radiobutton(client_or_server_frame, text="server",
-                               variable=client_or_server_var, value=0, command=client_or_server_func)
+def everything_color():
+    server_frame.configure(background=COLOR)
+    client_frame.configure(background=COLOR)
+    root.configure(background=COLOR)
+    ip_server_label.configure(background=COLOR, foreground=TEXT_COLOR)
+    port_server_label.configure(background=COLOR, foreground=TEXT_COLOR)
+    filename_server_label.configure(background=COLOR, foreground=TEXT_COLOR)
+    listening_server_label.configure(background=COLOR, foreground=TEXT_COLOR)
+    ip_client_label.configure(background=COLOR, foreground=TEXT_COLOR)
+    port_client_label.configure(background=COLOR, foreground=TEXT_COLOR)
+    send_client_percentage_label.configure(
+        background=COLOR, foreground=TEXT_COLOR)
+    filename_client_label.configure(background=COLOR, foreground=TEXT_COLOR)
+    client_or_server_frame.configure(background=COLOR)
+    client_or_server_label.configure(background=COLOR, foreground=TEXT_COLOR)
+    client_radio.configure(background=COLOR, foreground=TEXT_COLOR)
+    server_radio.configure(background=COLOR, foreground=TEXT_COLOR)
 
     client_or_server_label.pack(side=LEFT)
     client_radio.pack(side=LEFT)
     server_radio.pack(side=LEFT)
     client_or_server_frame.pack()
+
+
+def main():
+
     client_or_server_func()
+    everything_color()
     root.mainloop()
 
 
